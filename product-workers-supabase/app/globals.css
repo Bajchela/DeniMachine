@@ -1,0 +1,346 @@
+:root {
+  color-scheme: light;
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #166534;
+  --accent-soft: #dcfce7;
+  --danger: #b91c1c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.appShell {
+  min-height: 100vh;
+  padding: 12px;
+  max-width: 1300px;
+  margin: 0 auto;
+}
+
+.topBar {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.topBar h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+}
+
+.topBar p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.topBarRight {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.langBtn,
+.actionBtn,
+.miniBtn,
+.counterBtn {
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.langBtn {
+  background: #e5e7eb;
+  padding: 10px 14px;
+  font-weight: 700;
+}
+
+.langBtn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.actionBtn {
+  background: var(--accent);
+  color: white;
+  padding: 12px 14px;
+  font-weight: 700;
+}
+
+.actionBtn.secondary {
+  background: #e5e7eb;
+  color: var(--text);
+}
+
+.layoutGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(320px, 1fr);
+  gap: 12px;
+}
+
+.card,
+.warningCard,
+.reportCard,
+.formCard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.sectionHeader {
+  margin-bottom: 10px;
+}
+
+.sectionHeader h2,
+.warningCard h2,
+.reportCard h3,
+.modalCard h3 {
+  margin: 0 0 4px;
+}
+
+.sectionHeader p,
+.warningCard p,
+.modalCard p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.compactControls,
+.compactForm {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.compactControlsShort {
+  grid-template-columns: 1.2fr 0.8fr;
+}
+
+.input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: white;
+}
+
+.rowBtns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.scrollList {
+  max-height: 560px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+  padding-right: 2px;
+}
+
+.listItem,
+.workerRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px;
+  background: #fff;
+}
+
+.listItem.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.listItemMain {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.listTitle {
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.badge,
+.counterValue {
+  min-width: 44px;
+  text-align: center;
+  background: #f3f4f6;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 700;
+}
+
+.itemActions,
+.counterActions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.miniBtn,
+.counterBtn {
+  min-width: 40px;
+  min-height: 40px;
+  background: #e5e7eb;
+  font-weight: 700;
+}
+
+.miniBtn.danger {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.counterBtn {
+  background: var(--accent);
+  color: white;
+  font-size: 20px;
+}
+
+.workerMeta {
+  min-width: 0;
+}
+
+.workerSub,
+.footerNote,
+.loadingBox,
+.errorBox,
+.emptyBox {
+  color: var(--muted);
+}
+
+.footerNote,
+.loadingBox,
+.errorBox,
+.emptyBox {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.errorBox {
+  color: var(--danger);
+}
+
+.reportsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.reportLines {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.modalCard {
+  width: min(100%, 420px);
+  background: white;
+  border-radius: 18px;
+  padding: 16px;
+  border: 1px solid var(--line);
+}
+
+@media (max-width: 920px) {
+  .layoutGrid,
+  .reportsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .scrollList {
+    max-height: 420px;
+  }
+}
+
+@media (max-width: 640px) {
+  .appShell {
+    padding: 10px;
+  }
+
+  .topBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topBarRight {
+    justify-content: stretch;
+  }
+
+  .topBarRight > * {
+    flex: 1 1 auto;
+  }
+
+  .compactControlsShort,
+  .rowBtns {
+    grid-template-columns: 1fr;
+  }
+
+  .workerRow,
+  .listItem {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .listItemMain,
+  .itemActions,
+  .counterActions {
+    width: 100%;
+  }
+
+  .counterActions {
+    justify-content: flex-start;
+  }
+
+  .scrollList {
+    max-height: 360px;
+  }
+}
