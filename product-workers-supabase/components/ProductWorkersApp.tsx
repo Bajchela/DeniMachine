@@ -9,6 +9,7 @@ type WorkerSort = 'counterDesc' | 'firstLast' | 'lastFirst';
 type ProductFilter = 'all' | 'active' | 'zero';
 type ProductSort = 'nameAsc' | 'nameDesc' | 'countDesc' | 'countAsc';
 type ConfirmAction = 'increase' | 'decrease' | 'deleteProduct' | 'deleteWorker';
+type EditorMode = 'create' | 'edit';
 type CountMap = Record<string, number>;
 
 type Product = {
@@ -35,8 +36,6 @@ type PendingConfirm = {
   confirmLabel: string;
   onConfirm: () => Promise<void> | void;
 };
-
-const PAGE_SIZE = 10;
 
 const ui = {
   sr: {
@@ -82,6 +81,7 @@ const ui = {
     visible10: 'Prikazano prvih 10, ostalo skrolom',
     loading: 'Učitavanje...',
     setupTitle: 'Podesi Supabase',
+    setupText: 'Dodaj NEXT_PUBLIC_SUPABASE_URL i NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY u .env.local fajl.',
     confirmIncreaseTitle: 'Potvrda povećanja',
     confirmIncrease: 'Da li ste sigurni da želite da povećate brojač?',
     confirmDecreaseTitle: 'Potvrda smanjenja',
@@ -97,6 +97,13 @@ const ui = {
     summaryProductsMax: 'Mašina sa najviše rada',
     summaryProductsMin: 'Mašina sa najmanje rada',
     summaryProductsAvg: 'Sredina mašina',
+    machineBasedReport: 'Izveštaj po mašinama',
+    workerBasedReport: 'Izveštaj po radnicima',
+    selectedMachineReport: 'Izabrana mašina',
+    nextWorkerForMachine: 'Sledeći za ovu mašinu',
+    nextWorkersList: 'Predlog redosleda za ovu mašinu',
+    nextWorkerOverall: 'Sledeći po ukupnom radu',
+    suggestedAssignment: 'Predlog raspodele',
     total: 'Ukupno',
     average: 'Prosek',
     workerMachineMost: 'Najviše na mašini',
@@ -106,6 +113,13 @@ const ui = {
     emptyReports: 'Nema dovoljno podataka za izveštaj.',
     dbSaved: 'Podaci se čuvaju u Supabase bazi.',
     errorPrefix: 'Greška',
+    duplicateMachine: 'Mašina sa tim nazivom već postoji.',
+    duplicateWorker: 'Radnik sa tim imenom i prezimenom već postoji.',
+    selectMachineFirst: 'Prvo izaberi mašinu pa tek onda dodaj radnika.',
+    addMachineModalTitle: 'Nova mašina',
+    editMachineModalTitle: 'Izmena mašine',
+    addWorkerModalTitle: 'Novi radnik',
+    editWorkerModalTitle: 'Izmena radnika',
   },
   de: {
     title: 'Maschinen und Mitarbeiter',
@@ -150,6 +164,7 @@ const ui = {
     visible10: 'Erste 10 sichtbar, der Rest per Scroll',
     loading: 'Lädt...',
     setupTitle: 'Supabase einrichten',
+    setupText: 'Füge NEXT_PUBLIC_SUPABASE_URL und NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in die .env.local Datei ein.',
     confirmIncreaseTitle: 'Erhöhung bestätigen',
     confirmIncrease: 'Möchten Sie den Zähler wirklich erhöhen?',
     confirmDecreaseTitle: 'Verringerung bestätigen',
@@ -165,6 +180,13 @@ const ui = {
     summaryProductsMax: 'Maschine mit meiste Arbeit',
     summaryProductsMin: 'Maschine mit wenigste Arbeit',
     summaryProductsAvg: 'Maschine Mitte',
+    machineBasedReport: 'Bericht nach Maschinen',
+    workerBasedReport: 'Bericht nach Mitarbeitern',
+    selectedMachineReport: 'Ausgewählte Maschine',
+    nextWorkerForMachine: 'Nächster für diese Maschine',
+    nextWorkersList: 'Empfohlene Reihenfolge für diese Maschine',
+    nextWorkerOverall: 'Nächster nach Gesamtarbeit',
+    suggestedAssignment: 'Einsatzvorschlag',
     total: 'Gesamt',
     average: 'Durchschnitt',
     workerMachineMost: 'Am meisten auf Maschine',
@@ -174,6 +196,13 @@ const ui = {
     emptyReports: 'Nicht genug Daten für den Bericht.',
     dbSaved: 'Daten werden in der Supabase-Datenbank gespeichert.',
     errorPrefix: 'Fehler',
+    duplicateMachine: 'Eine Maschine mit diesem Namen existiert bereits.',
+    duplicateWorker: 'Ein Mitarbeiter mit diesem Vor- und Nachnamen existiert bereits.',
+    selectMachineFirst: 'Wähle zuerst eine Maschine aus und füge dann den Mitarbeiter hinzu.',
+    addMachineModalTitle: 'Neue Maschine',
+    editMachineModalTitle: 'Maschine bearbeiten',
+    addWorkerModalTitle: 'Neuer Mitarbeiter',
+    editWorkerModalTitle: 'Mitarbeiter bearbeiten',
   },
 } as const;
 
@@ -182,7 +211,7 @@ function countKey(productId: number, workerId: number) {
 }
 
 function normalize(value: string) {
-  return value.toLocaleLowerCase('sr-Latn');
+  return value.toLocaleLowerCase('sr-Latn').trim();
 }
 
 function getErrorMessage(error: unknown) {
@@ -215,10 +244,14 @@ export default function ProductWorkersApp() {
 
   const [productName, setProductName] = useState('');
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [productEditorMode, setProductEditorMode] = useState<EditorMode>('create');
 
   const [workerFirstName, setWorkerFirstName] = useState('');
   const [workerLastName, setWorkerLastName] = useState('');
   const [editingWorkerId, setEditingWorkerId] = useState<number | null>(null);
+  const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
+  const [workerEditorMode, setWorkerEditorMode] = useState<EditorMode>('create');
 
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
 
@@ -276,7 +309,7 @@ export default function ProductWorkersApp() {
   };
 
   const filteredProducts = useMemo(() => {
-    const term = normalize(productSearch.trim());
+    const term = normalize(productSearch);
 
     const result = products.filter((product) => {
       const total = getProductTotal(product.id);
@@ -313,7 +346,7 @@ export default function ProductWorkersApp() {
   const visibleWorkers = useMemo(() => {
     if (!selectedProduct) return [];
 
-    const term = normalize(workerSearch.trim());
+    const term = normalize(workerSearch);
     const result = workers.filter((worker) => {
       const joined1 = normalize(`${worker.ime} ${worker.prezime}`);
       const joined2 = normalize(`${worker.prezime} ${worker.ime}`);
@@ -338,10 +371,70 @@ export default function ProductWorkersApp() {
     return result;
   }, [selectedProduct, workers, workerSearch, workerSort, counts]);
 
+  const openCreateProductModal = () => {
+    setError('');
+    setProductEditorMode('create');
+    setEditingProductId(null);
+    setProductName('');
+    setIsProductModalOpen(true);
+  };
+
+  const openEditProductModal = (product: Product) => {
+    setError('');
+    setProductEditorMode('edit');
+    setEditingProductId(product.id);
+    setProductName(product.naziv);
+    setIsProductModalOpen(true);
+  };
+
+  const closeProductModal = () => {
+    setIsProductModalOpen(false);
+    setEditingProductId(null);
+    setProductName('');
+  };
+
+  const openCreateWorkerModal = () => {
+    if (!selectedProduct) {
+      setError(`${t.errorPrefix}: ${t.selectMachineFirst}`);
+      return;
+    }
+    setError('');
+    setWorkerEditorMode('create');
+    setEditingWorkerId(null);
+    setWorkerFirstName('');
+    setWorkerLastName('');
+    setIsWorkerModalOpen(true);
+  };
+
+  const openEditWorkerModal = (worker: Worker) => {
+    setError('');
+    setWorkerEditorMode('edit');
+    setEditingWorkerId(worker.id);
+    setWorkerFirstName(worker.ime);
+    setWorkerLastName(worker.prezime);
+    setIsWorkerModalOpen(true);
+  };
+
+  const closeWorkerModal = () => {
+    setIsWorkerModalOpen(false);
+    setEditingWorkerId(null);
+    setWorkerFirstName('');
+    setWorkerLastName('');
+  };
+
   const saveProduct = async () => {
     if (!supabase) return;
     const naziv = productName.trim();
     if (!naziv) return;
+
+    const duplicateProduct = products.find(
+      (product) => normalize(product.naziv) === normalize(naziv) && product.id !== editingProductId
+    );
+
+    if (duplicateProduct) {
+      setError(`${t.errorPrefix}: ${t.duplicateMachine}`);
+      return;
+    }
 
     setSaving(true);
     setError('');
@@ -355,8 +448,7 @@ export default function ProductWorkersApp() {
         if (insertError) throw insertError;
       }
 
-      setProductName('');
-      setEditingProductId(null);
+      closeProductModal();
       await refreshAll();
     } catch (err) {
       setError(`${t.errorPrefix}: ${getErrorMessage(err)}`);
@@ -367,9 +459,26 @@ export default function ProductWorkersApp() {
 
   const saveWorker = async () => {
     if (!supabase) return;
+    if (!selectedProduct) {
+      setError(`${t.errorPrefix}: ${t.selectMachineFirst}`);
+      return;
+    }
+
     const ime = workerFirstName.trim();
     const prezime = workerLastName.trim();
     if (!ime || !prezime) return;
+
+    const duplicateWorker = workers.find(
+      (worker) =>
+        normalize(worker.ime) === normalize(ime) &&
+        normalize(worker.prezime) === normalize(prezime) &&
+        worker.id !== editingWorkerId
+    );
+
+    if (duplicateWorker) {
+      setError(`${t.errorPrefix}: ${t.duplicateWorker}`);
+      return;
+    }
 
     setSaving(true);
     setError('');
@@ -383,9 +492,7 @@ export default function ProductWorkersApp() {
         if (insertError) throw insertError;
       }
 
-      setWorkerFirstName('');
-      setWorkerLastName('');
-      setEditingWorkerId(null);
+      closeWorkerModal();
       await refreshAll();
     } catch (err) {
       setError(`${t.errorPrefix}: ${getErrorMessage(err)}`);
@@ -532,6 +639,58 @@ export default function ProductWorkersApp() {
 
   const middleWorker = workerReportRows.length ? workerReportRows[Math.floor(workerReportRows.length / 2)] : null;
   const middleProduct = productReportRows.length ? productReportRows[Math.floor(productReportRows.length / 2)] : null;
+  const leastWorkedWorker = workerReportRows[workerReportRows.length - 1] ?? null;
+  const mostWorkedWorker = workerReportRows[0] ?? null;
+  const leastWorkedProduct = productReportRows[productReportRows.length - 1] ?? null;
+  const mostWorkedProduct = productReportRows[0] ?? null;
+
+  const selectedMachineCandidates = useMemo(() => {
+    if (!selectedProduct) return [];
+
+    return [...workers]
+      .sort((a, b) => {
+        const aMachine = counts[countKey(selectedProduct.id, a.id)] ?? 0;
+        const bMachine = counts[countKey(selectedProduct.id, b.id)] ?? 0;
+        if (aMachine !== bMachine) return aMachine - bMachine;
+
+        const aTotal = getWorkerTotal(a.id);
+        const bTotal = getWorkerTotal(b.id);
+        if (aTotal !== bTotal) return aTotal - bTotal;
+
+        return `${a.ime} ${a.prezime}`.localeCompare(`${b.ime} ${b.prezime}`, 'sr');
+      })
+      .map((worker) => ({
+        worker,
+        machineCount: counts[countKey(selectedProduct.id, worker.id)] ?? 0,
+        totalCount: getWorkerTotal(worker.id),
+      }));
+  }, [selectedProduct, workers, counts, products]);
+
+  const assignmentSuggestions = useMemo(() => {
+    return products.map((product) => {
+      const orderedWorkers = [...workers]
+        .sort((a, b) => {
+          const aMachine = counts[countKey(product.id, a.id)] ?? 0;
+          const bMachine = counts[countKey(product.id, b.id)] ?? 0;
+          if (aMachine !== bMachine) return aMachine - bMachine;
+
+          const aTotal = getWorkerTotal(a.id);
+          const bTotal = getWorkerTotal(b.id);
+          if (aTotal !== bTotal) return aTotal - bTotal;
+
+          return `${a.ime} ${a.prezime}`.localeCompare(`${b.ime} ${b.prezime}`, 'sr');
+        });
+
+      const nextWorker = orderedWorkers[0] ?? null;
+
+      return {
+        product,
+        nextWorker,
+        machineCount: nextWorker ? counts[countKey(product.id, nextWorker.id)] ?? 0 : 0,
+        totalCount: nextWorker ? getWorkerTotal(nextWorker.id) : 0,
+      };
+    });
+  }, [products, workers, counts]);
 
   return (
     <main className="appShell">
@@ -562,11 +721,14 @@ export default function ProductWorkersApp() {
       {screen === 'main' ? (
         <div className="layoutGrid">
           <section className="card">
-            <div className="sectionHeader">
+            <div className="sectionHeader sectionHeaderRow">
               <div>
                 <h2>{t.products}</h2>
                 <p>{t.visible10}</p>
               </div>
+              <button className="actionBtn" onClick={openCreateProductModal} type="button">
+                {t.addMachine}
+              </button>
             </div>
 
             <div className="compactControls">
@@ -584,20 +746,6 @@ export default function ProductWorkersApp() {
               </select>
             </div>
 
-            <div className="formCard compactForm">
-              <input className="input" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder={t.machineName} />
-              <div className="rowBtns">
-                <button className="actionBtn" disabled={saving || !productName.trim() || !supabase} onClick={() => void saveProduct()} type="button">
-                  {editingProductId ? t.editMachine : t.addMachine}
-                </button>
-                {editingProductId ? (
-                  <button className="actionBtn secondary" onClick={() => { setEditingProductId(null); setProductName(''); }} type="button">
-                    {t.cancel}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
             <div className="scrollList">
               {filteredProducts.length === 0 ? <div className="emptyBox">{t.noProducts}</div> : null}
               {filteredProducts.map((product) => {
@@ -609,7 +757,7 @@ export default function ProductWorkersApp() {
                       <span className="badge">{getProductTotal(product.id)}</span>
                     </button>
                     <div className="itemActions">
-                      <button className="miniBtn" onClick={() => { setEditingProductId(product.id); setProductName(product.naziv); }} type="button">✎</button>
+                      <button className="miniBtn" onClick={() => openEditProductModal(product)} type="button">✎</button>
                       <button className="miniBtn danger" onClick={() => confirmDeleteProduct(product)} type="button">✕</button>
                     </div>
                   </div>
@@ -619,11 +767,14 @@ export default function ProductWorkersApp() {
           </section>
 
           <section className="card">
-            <div className="sectionHeader">
+            <div className="sectionHeader sectionHeaderRow">
               <div>
                 <h2>{t.workers}</h2>
                 <p>{selectedProduct ? `${t.selectedMachine}: ${selectedProduct.naziv}` : t.chooseMachine}</p>
               </div>
+              <button className="actionBtn" disabled={!selectedProduct} onClick={openCreateWorkerModal} type="button">
+                {t.addWorker}
+              </button>
             </div>
 
             <div className="compactControls compactControlsShort">
@@ -633,21 +784,6 @@ export default function ProductWorkersApp() {
                 <option value="firstLast">{t.sortFirstLast}</option>
                 <option value="lastFirst">{t.sortLastFirst}</option>
               </select>
-            </div>
-
-            <div className="formCard compactForm compactFormWorkers">
-              <input className="input" value={workerFirstName} onChange={(e) => setWorkerFirstName(e.target.value)} placeholder={t.firstName} />
-              <input className="input" value={workerLastName} onChange={(e) => setWorkerLastName(e.target.value)} placeholder={t.lastName} />
-              <div className="rowBtns">
-                <button className="actionBtn" disabled={saving || !workerFirstName.trim() || !workerLastName.trim() || !supabase} onClick={() => void saveWorker()} type="button">
-                  {editingWorkerId ? t.editWorker : t.addWorker}
-                </button>
-                {editingWorkerId ? (
-                  <button className="actionBtn secondary" onClick={() => { setEditingWorkerId(null); setWorkerFirstName(''); setWorkerLastName(''); }} type="button">
-                    {t.cancel}
-                  </button>
-                ) : null}
-              </div>
             </div>
 
             <div className="scrollList">
@@ -665,7 +801,7 @@ export default function ProductWorkersApp() {
                       <button className="counterBtn" onClick={() => void updateCounter(worker.id, -1)} type="button">{t.minus}</button>
                       <span className="counterValue">{currentValue}</span>
                       <button className="counterBtn" onClick={() => void updateCounter(worker.id, 1)} type="button">{t.plus}</button>
-                      <button className="miniBtn" onClick={() => { setEditingWorkerId(worker.id); setWorkerFirstName(worker.ime); setWorkerLastName(worker.prezime); }} type="button">✎</button>
+                      <button className="miniBtn" onClick={() => openEditWorkerModal(worker)} type="button">✎</button>
                       <button className="miniBtn danger" onClick={() => confirmDeleteWorker(worker)} type="button">✕</button>
                     </div>
                   </div>
@@ -675,71 +811,110 @@ export default function ProductWorkersApp() {
           </section>
         </div>
       ) : (
-        <section className="reportsGrid">
+        <section className="reportsPage">
           {workerReportRows.length === 0 || productReportRows.length === 0 ? (
             <div className="emptyBox">{t.emptyReports}</div>
           ) : (
             <>
-              <ReportCard
-                title={t.summaryWorkersMax}
-                lines={workerReportRows[0] ? [
-                  `${workerReportRows[0].worker.ime} ${workerReportRows[0].worker.prezime}`,
-                  `${t.total}: ${workerReportRows[0].total}`,
-                  `${t.average}: ${workerReportRows[0].avg.toFixed(2)}`,
-                  `${t.workerMachineMost}: ${workerReportRows[0].maxProduct?.product.naziv ?? '-'}`,
-                  `${t.workerMachineLeast}: ${workerReportRows[0].minProduct?.product.naziv ?? '-'}`,
-                ] : []}
-              />
-              <ReportCard
-                title={t.summaryWorkersMin}
-                lines={workerReportRows[workerReportRows.length - 1] ? [
-                  `${workerReportRows[workerReportRows.length - 1].worker.ime} ${workerReportRows[workerReportRows.length - 1].worker.prezime}`,
-                  `${t.total}: ${workerReportRows[workerReportRows.length - 1].total}`,
-                  `${t.average}: ${workerReportRows[workerReportRows.length - 1].avg.toFixed(2)}`,
-                  `${t.workerMachineMost}: ${workerReportRows[workerReportRows.length - 1].maxProduct?.product.naziv ?? '-'}`,
-                  `${t.workerMachineLeast}: ${workerReportRows[workerReportRows.length - 1].minProduct?.product.naziv ?? '-'}`,
-                ] : []}
-              />
-              <ReportCard
-                title={t.summaryWorkersAvg}
-                lines={middleWorker ? [
-                  `${middleWorker.worker.ime} ${middleWorker.worker.prezime}`,
-                  `${t.total}: ${middleWorker.total}`,
-                  `${t.average}: ${middleWorker.avg.toFixed(2)}`,
-                  `${t.workerMachineMost}: ${middleWorker.maxProduct?.product.naziv ?? '-'}`,
-                  `${t.workerMachineLeast}: ${middleWorker.minProduct?.product.naziv ?? '-'}`,
-                ] : []}
-              />
-              <ReportCard
-                title={t.summaryProductsMax}
-                lines={productReportRows[0] ? [
-                  `${productReportRows[0].product.naziv}`,
-                  `${t.total}: ${productReportRows[0].total}`,
-                  `${t.average}: ${productReportRows[0].avg.toFixed(2)}`,
-                  `${t.productWorkerMost}: ${productReportRows[0].maxWorker ? `${productReportRows[0].maxWorker.worker.ime} ${productReportRows[0].maxWorker.worker.prezime}` : '-'}`,
-                  `${t.productWorkerLeast}: ${productReportRows[0].minWorker ? `${productReportRows[0].minWorker.worker.ime} ${productReportRows[0].minWorker.worker.prezime}` : '-'}`,
-                ] : []}
-              />
-              <ReportCard
-                title={t.summaryProductsMin}
-                lines={productReportRows[productReportRows.length - 1] ? [
-                  `${productReportRows[productReportRows.length - 1].product.naziv}`,
-                  `${t.total}: ${productReportRows[productReportRows.length - 1].total}`,
-                  `${t.average}: ${productReportRows[productReportRows.length - 1].avg.toFixed(2)}`,
-                  `${t.productWorkerMost}: ${productReportRows[productReportRows.length - 1].maxWorker ? `${productReportRows[productReportRows.length - 1].maxWorker.worker.ime} ${productReportRows[productReportRows.length - 1].maxWorker.worker.prezime}` : '-'}`,
-                  `${t.productWorkerLeast}: ${productReportRows[productReportRows.length - 1].minWorker ? `${productReportRows[productReportRows.length - 1].minWorker.worker.ime} ${productReportRows[productReportRows.length - 1].minWorker.worker.prezime}` : '-'}`,
-                ] : []}
-              />
-              <ReportCard
-                title={t.summaryProductsAvg}
-                lines={middleProduct ? [
-                  `${middleProduct.product.naziv}`,
-                  `${t.total}: ${middleProduct.total}`,
-                  `${t.average}: ${middleProduct.avg.toFixed(2)}`,
-                  `${t.productWorkerMost}: ${middleProduct.maxWorker ? `${middleProduct.maxWorker.worker.ime} ${middleProduct.maxWorker.worker.prezime}` : '-'}`,
-                  `${t.productWorkerLeast}: ${middleProduct.minWorker ? `${middleProduct.minWorker.worker.ime} ${middleProduct.minWorker.worker.prezime}` : '-'}`,
-                ] : []}
-              />
+              <div className="reportsGrid">
+                <ReportCard
+                  title={t.summaryWorkersMin}
+                  lines={leastWorkedWorker ? [
+                    `${leastWorkedWorker.worker.ime} ${leastWorkedWorker.worker.prezime}`,
+                    `${t.total}: ${leastWorkedWorker.total}`,
+                    `${t.average}: ${leastWorkedWorker.avg.toFixed(2)}`,
+                    `${t.workerMachineLeast}: ${leastWorkedWorker.minProduct?.product.naziv ?? '-'}`,
+                    `${t.workerMachineMost}: ${leastWorkedWorker.maxProduct?.product.naziv ?? '-'}`,
+                  ] : []}
+                />
+                <ReportCard
+                  title={t.summaryWorkersAvg}
+                  lines={middleWorker ? [
+                    `${middleWorker.worker.ime} ${middleWorker.worker.prezime}`,
+                    `${t.total}: ${middleWorker.total}`,
+                    `${t.average}: ${middleWorker.avg.toFixed(2)}`,
+                    `${t.workerMachineLeast}: ${middleWorker.minProduct?.product.naziv ?? '-'}`,
+                    `${t.workerMachineMost}: ${middleWorker.maxProduct?.product.naziv ?? '-'}`,
+                  ] : []}
+                />
+                <ReportCard
+                  title={t.summaryWorkersMax}
+                  lines={mostWorkedWorker ? [
+                    `${mostWorkedWorker.worker.ime} ${mostWorkedWorker.worker.prezime}`,
+                    `${t.total}: ${mostWorkedWorker.total}`,
+                    `${t.average}: ${mostWorkedWorker.avg.toFixed(2)}`,
+                    `${t.workerMachineLeast}: ${mostWorkedWorker.minProduct?.product.naziv ?? '-'}`,
+                    `${t.workerMachineMost}: ${mostWorkedWorker.maxProduct?.product.naziv ?? '-'}`,
+                  ] : []}
+                />
+                <ReportCard
+                  title={t.summaryProductsMin}
+                  lines={leastWorkedProduct ? [
+                    `${leastWorkedProduct.product.naziv}`,
+                    `${t.total}: ${leastWorkedProduct.total}`,
+                    `${t.average}: ${leastWorkedProduct.avg.toFixed(2)}`,
+                    `${t.productWorkerLeast}: ${leastWorkedProduct.minWorker ? `${leastWorkedProduct.minWorker.worker.ime} ${leastWorkedProduct.minWorker.worker.prezime}` : '-'}`,
+                    `${t.productWorkerMost}: ${leastWorkedProduct.maxWorker ? `${leastWorkedProduct.maxWorker.worker.ime} ${leastWorkedProduct.maxWorker.worker.prezime}` : '-'}`,
+                  ] : []}
+                />
+                <ReportCard
+                  title={t.summaryProductsAvg}
+                  lines={middleProduct ? [
+                    `${middleProduct.product.naziv}`,
+                    `${t.total}: ${middleProduct.total}`,
+                    `${t.average}: ${middleProduct.avg.toFixed(2)}`,
+                    `${t.productWorkerLeast}: ${middleProduct.minWorker ? `${middleProduct.minWorker.worker.ime} ${middleProduct.minWorker.worker.prezime}` : '-'}`,
+                    `${t.productWorkerMost}: ${middleProduct.maxWorker ? `${middleProduct.maxWorker.worker.ime} ${middleProduct.maxWorker.worker.prezime}` : '-'}`,
+                  ] : []}
+                />
+                <ReportCard
+                  title={t.summaryProductsMax}
+                  lines={mostWorkedProduct ? [
+                    `${mostWorkedProduct.product.naziv}`,
+                    `${t.total}: ${mostWorkedProduct.total}`,
+                    `${t.average}: ${mostWorkedProduct.avg.toFixed(2)}`,
+                    `${t.productWorkerLeast}: ${mostWorkedProduct.minWorker ? `${mostWorkedProduct.minWorker.worker.ime} ${mostWorkedProduct.minWorker.worker.prezime}` : '-'}`,
+                    `${t.productWorkerMost}: ${mostWorkedProduct.maxWorker ? `${mostWorkedProduct.maxWorker.worker.ime} ${mostWorkedProduct.maxWorker.worker.prezime}` : '-'}`,
+                  ] : []}
+                />
+              </div>
+
+              <div className="reportsGrid reportsGridWide">
+                <ReportListCard
+                  title={t.selectedMachineReport}
+                  subtitle={selectedProduct ? `${selectedProduct.naziv}` : t.chooseMachine}
+                  items={selectedProduct ? selectedMachineCandidates.slice(0, 8).map((entry, index) => ({
+                    title: `${index + 1}. ${entry.worker.ime} ${entry.worker.prezime}`,
+                    meta: `${t.counter}: ${entry.machineCount} · ${t.total}: ${entry.totalCount}`,
+                    badge: index === 0 ? t.nextWorkerForMachine : undefined,
+                  })) : []}
+                  emptyText={t.chooseMachine}
+                />
+
+                <ReportListCard
+                  title={t.workerBasedReport}
+                  subtitle={t.nextWorkerOverall}
+                  items={workerReportRows.slice().reverse().slice(0, 8).map((entry, index) => ({
+                    title: `${index + 1}. ${entry.worker.ime} ${entry.worker.prezime}`,
+                    meta: `${t.total}: ${entry.total} · ${t.average}: ${entry.avg.toFixed(2)}`,
+                    badge: index === 0 ? t.nextWorkerOverall : undefined,
+                  }))}
+                  emptyText={t.emptyReports}
+                />
+
+                <ReportListCard
+                  title={t.machineBasedReport}
+                  subtitle={t.suggestedAssignment}
+                  items={assignmentSuggestions.slice(0, 12).map((entry) => ({
+                    title: entry.product.naziv,
+                    meta: entry.nextWorker
+                      ? `${entry.nextWorker.ime} ${entry.nextWorker.prezime} · ${t.counter}: ${entry.machineCount} · ${t.total}: ${entry.totalCount}`
+                      : '-',
+                    badge: entry.nextWorker ? t.nextWorkerForMachine : undefined,
+                  }))}
+                  emptyText={t.emptyReports}
+                />
+              </div>
             </>
           )}
         </section>
@@ -763,6 +938,68 @@ export default function ProductWorkersApp() {
           </div>
         </div>
       ) : null}
+
+      {isProductModalOpen ? (
+        <div className="modalOverlay">
+          <div className="modalCard">
+            <h3>{productEditorMode === 'edit' ? t.editMachineModalTitle : t.addMachineModalTitle}</h3>
+            <div className="compactForm modalForm">
+              <input
+                autoFocus
+                className="input"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder={t.machineName}
+              />
+              <div className="rowBtns">
+                <button className="actionBtn" disabled={saving || !productName.trim()} onClick={() => void saveProduct()} type="button">
+                  {t.save}
+                </button>
+                <button className="actionBtn secondary" disabled={saving} onClick={closeProductModal} type="button">
+                  {t.cancel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isWorkerModalOpen ? (
+        <div className="modalOverlay">
+          <div className="modalCard">
+            <h3>{workerEditorMode === 'edit' ? t.editWorkerModalTitle : t.addWorkerModalTitle}</h3>
+            <p>{selectedProduct ? `${t.selectedMachine}: ${selectedProduct.naziv}` : t.chooseMachine}</p>
+            <div className="compactForm modalForm">
+              <input
+                autoFocus
+                className="input"
+                value={workerFirstName}
+                onChange={(e) => setWorkerFirstName(e.target.value)}
+                placeholder={t.firstName}
+              />
+              <input
+                className="input"
+                value={workerLastName}
+                onChange={(e) => setWorkerLastName(e.target.value)}
+                placeholder={t.lastName}
+              />
+              <div className="rowBtns">
+                <button
+                  className="actionBtn"
+                  disabled={saving || !workerFirstName.trim() || !workerLastName.trim() || !selectedProduct}
+                  onClick={() => void saveWorker()}
+                  type="button"
+                >
+                  {t.save}
+                </button>
+                <button className="actionBtn secondary" disabled={saving} onClick={closeWorkerModal} type="button">
+                  {t.cancel}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
@@ -775,6 +1012,40 @@ function ReportCard({ title, lines }: { title: string; lines: string[] }) {
         {lines.map((line) => (
           <div key={line}>{line}</div>
         ))}
+      </div>
+    </article>
+  );
+}
+
+function ReportListCard({
+  title,
+  subtitle,
+  items,
+  emptyText,
+}: {
+  title: string;
+  subtitle?: string;
+  items: { title: string; meta: string; badge?: string }[];
+  emptyText: string;
+}) {
+  return (
+    <article className="reportCard reportListCard">
+      <h3>{title}</h3>
+      {subtitle ? <p className="reportSubtitle">{subtitle}</p> : null}
+      <div className="reportList">
+        {items.length === 0 ? (
+          <div className="emptyBox">{emptyText}</div>
+        ) : (
+          items.map((item) => (
+            <div className="reportListItem" key={`${item.title}-${item.meta}`}>
+              <div>
+                <div className="listTitle">{item.title}</div>
+                <div className="workerSub">{item.meta}</div>
+              </div>
+              {item.badge ? <span className="badge">{item.badge}</span> : null}
+            </div>
+          ))
+        )}
       </div>
     </article>
   );

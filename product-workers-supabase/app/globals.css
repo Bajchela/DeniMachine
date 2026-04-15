@@ -114,6 +114,21 @@ select {
   margin-bottom: 10px;
 }
 
+.sectionHeaderRow {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.sectionHeaderRow .actionBtn {
+  flex-shrink: 0;
+}
+
+.modalForm {
+  margin-top: 12px;
+}
+
 .sectionHeader h2,
 .warningCard h2,
 .reportCard h3,
@@ -319,6 +334,15 @@ select {
     flex: 1 1 auto;
   }
 
+  .sectionHeaderRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sectionHeaderRow .actionBtn {
+    width: 100%;
+  }
+
   .compactControlsShort,
   .rowBtns {
     grid-template-columns: 1fr;
@@ -342,5 +366,47 @@ select {
 
   .scrollList {
     max-height: 360px;
+  }
+}
+
+
+.reportsPage {
+  display: grid;
+  gap: 12px;
+}
+
+.reportsGridWide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reportListCard {
+  display: grid;
+  gap: 10px;
+}
+
+.reportSubtitle {
+  margin: 0;
+  color: var(--muted);
+}
+
+.reportList {
+  display: grid;
+  gap: 8px;
+}
+
+.reportListItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fff;
+}
+
+@media (max-width: 920px) {
+  .reportsGridWide {
+    grid-template-columns: 1fr;
   }
 }

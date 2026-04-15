@@ -1,0 +1,8 @@
+Ovaj zip već sadrži `.env.local` sa Supabase URL i publishable key vrednostima koje si poslao.
+Ako menjaš Supabase projekat kasnije, samo izmeni `.env.local`.
+
+Pokretanje:
+npm install
+npm run dev
+
+Ako i dalje ne upisuje u bazu, proveri da li su tabele i RLS policy pravilno kreirane u Supabase.

@@ -19,3 +19,15 @@ npm run dev
 - Import the repo into Vercel
 - Add the same environment variables in Vercel Project Settings
 - Deploy
+
+
+## Environment variables
+
+Create a `.env.local` file with:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
+```
+
+For older Supabase projects you can use `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead.

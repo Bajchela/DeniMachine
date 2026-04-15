@@ -1,0 +1,1 @@
+Dodata je getWorkerTotal funkcija u ProductWorkersApp.tsx da izvestaji ne pucaju.
